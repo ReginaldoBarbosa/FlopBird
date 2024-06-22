@@ -12,6 +12,10 @@
 #include "esp_random.h"
 #include "esp_timer.h"
 
+//Controlador do Placar
+//centena está na D7
+#define Dezena  GPIO_NUM_32
+#define Unidade GPIO_NUM_26
 
 //Control of LCD
 #define RS GPIO_NUM_27
@@ -35,6 +39,116 @@ uint32_t tela = 0;
 uint32_t tela_um = 0;
 uint16_t tela_dois = 0;
 uint32_t bird_pos = 0x8000;
+uint32_t pontos = 0;
+
+
+//Numeros display
+void display_num(int i){
+	switch(i){
+		case 1:
+			gpio_set_level(D1, 1);
+			gpio_set_level(D2, 1);
+			gpio_set_level(D3, 1);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 1);
+			gpio_set_level(D7, 0);
+			break;
+		case 2:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 1);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 0);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 1);
+			break;
+		case 3:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 1);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 0);
+			break;
+		case 4:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 0);
+			gpio_set_level(D3, 1);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 1);
+			gpio_set_level(D7, 0);
+			break;
+		case 5:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 0);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 1);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 0);
+			break;
+		case 6:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 0);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 0);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 0);
+			break;
+		case 7:
+			gpio_set_level(D1, 1);
+			gpio_set_level(D2, 1);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 1);
+			gpio_set_level(D7, 0);
+			break;
+		case 8:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 0);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 0);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 0);
+			break;
+		case 9:
+			gpio_set_level(D1, 0);
+			gpio_set_level(D2, 0);
+			gpio_set_level(D3, 0);
+			gpio_set_level(D4, 0);
+			gpio_set_level(D5, 1);
+			gpio_set_level(D6, 0);
+			gpio_set_level(D7, 0);
+			break;
+	}
+}
+
+
+//Printa no display
+void display_level(int i){
+
+	gpio_set_level(D0, 1);
+	display_num((i%1000)/100);
+	gpio_set_level(D0, 0);
+	gpio_set_level(Dezena, 1);
+	display_num((i%100)/10);
+	gpio_set_level(Dezena, 0);
+	gpio_set_level(Unidade, 1);
+	display_num(i%10);
+	gpio_set_level(Unidade, 0);
+
+}
+
+//Função para captar o tempo passado desde o inicio do código
+uint64_t millis(void) {
+	return esp_timer_get_time() / 1000;
+}
 
 //Set do modo dos botões
 void botoes(void){
@@ -57,6 +171,11 @@ void lcd_gpio_modes(void){
 	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
 	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
 	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
+
+	//Controlador do placar
+	//centena é o d07
+	gpio_set_direction(Dezena, GPIO_MODE_OUTPUT);
+	gpio_set_direction(Unidade, GPIO_MODE_OUTPUT);
 
 }
 
@@ -256,36 +375,128 @@ void lcd_update(void){
 					  }
 					  else lcd_print_vazio();
 		}
+		display_level(pontos);
 	}
 }
 
-//Função para captar o tempo passado desde o inicio do código
-uint64_t millis(void) {
-	return esp_timer_get_time() / 1000;
-}
-
+//posição do passaro
 void get_bird_pos(void){
-	if(gpio_get_level(BOT1)){
+	if(gpio_get_level(BOT1) && !gpio_get_level(BOT2)){
 		bird_pos = 0x80000000;
 		tela |= bird_pos;
 	}
-	if(gpio_get_level(BOT2)){
+	if(gpio_get_level(BOT2) && !gpio_get_level(BOT1)){
 		bird_pos = 0x8000;
 		tela |= bird_pos;
 	}
 }
 
+void game_over(){
+	lcd_clean();
+	esp_rom_delay_us(800);
+
+	lcd_line_one();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+
+	lcd_bits(0b01000111);
+	lcd_send_char();
+
+	lcd_bits(0b01000001);
+	lcd_send_char();
+
+	lcd_bits(0b01001101);
+	lcd_send_char();
+
+	lcd_bits(0b01000101);
+	lcd_send_char();
+
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+
+	lcd_line_two();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+
+	lcd_bits(0b01001111);
+	lcd_send_char();
+
+	lcd_bits(0b01010110);
+	lcd_send_char();
+
+	lcd_bits(0b01000101);
+	lcd_send_char();
+
+	lcd_bits(0b01010010);
+	lcd_send_char();
+
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+	lcd_bits(0b00100000);
+	lcd_send_char();
+
+	esp_rom_delay_us(800);
+}
 
 //O jogo roda aqui
 void jogo(void){
 	uint32_t current_time = 0;
 	int flag = 0;
+	int acelera = 0;
 	while(1){
-		if((millis() - current_time)>700){
+		get_bird_pos();
+		if((millis() - current_time)>1000){
+			acelera++;
+			pontos++;
+		}
+		if(((bird_pos & (tela_um<<16))>0) || ((bird_pos & tela_dois)>0)){
+			game_over();
+			break;
+		}
+
+		else if((millis() - current_time)>(700 - acelera)){
 			tela_um = tela_um<<1;
 			tela_dois = tela_dois<<1;
-			if((esp_random()%3)&&(flag <= 0)){
-				esp_rom_delay_us(20);
+			if((esp_random()%2)&&(flag <= 0)){
+				esp_rom_delay_us(5);
 				if(esp_random()%2){
 					tela_um |= 1;
 					flag = 2;
@@ -301,7 +512,6 @@ void jogo(void){
 			tela = (tela_um<<16) + tela_dois;
 			current_time = millis();
 		}
-		get_bird_pos();
 	}
 }
 
@@ -310,6 +520,7 @@ void app_main(void){
 	botoes();
 	lcd_init();
 	lcd_cria_bird_e_torre();
+
 
 	xTaskCreate(&jogo,"jogo", 4096, NULL,5,NULL);
 	xTaskCreate(&lcd_update,"lcd_update", 4096, NULL,1,NULL);
