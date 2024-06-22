@@ -129,7 +129,6 @@ void display_num(int i){
 	}
 }
 
-
 //Printa no display
 void display_level(int i){
 
